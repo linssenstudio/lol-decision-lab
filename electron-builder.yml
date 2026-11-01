@@ -1,0 +1,28 @@
+appId: com.decisionlab.offline
+productName: 决策实验室
+copyright: Copyright © 2026
+toolsets:
+  nsis: 1.2.1
+directories:
+  output: release
+files:
+  - dist/**/*
+  - desktop/**/*
+  - package.json
+asar: true
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: Decision-Lab-Setup-${version}-${arch}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 决策实验室
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico

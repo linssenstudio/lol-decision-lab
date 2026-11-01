@@ -1,0 +1,9 @@
+node_modules/
+dist/
+release/
+tools/
+browser-check.png
+build/icon.png
+build/icon.ico
+.DS_Store
+*.log
