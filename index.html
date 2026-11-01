@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="离线战术决策实验室：观察状态采集、威胁预测、连招状态机与动作输出。" />
+    <title>决策实验室 · 离线战术仿真</title>
+  </head>
+  <body>
+    <main id="app">
+      <canvas id="battlefield" aria-label="离线战术仿真战场"></canvas>
+
+      <header class="info-block">
+        <svg class="mark" viewBox="0 0 48 48" aria-hidden="true">
+          <path d="M24 3 43 14v20L24 45 5 34V14Z" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <path d="m14 29 10-17 10 17-10 6Z" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <circle cx="24" cy="25" r="3" fill="currentColor"/>
+        </svg>
+        <div>
+          <div class="title-line"><h1>决策实验室</h1><span class="divider">/</span><span>离线战术仿真</span></div>
+          <p>点击空地移动 · 点击敌人锁定目标 · 所有数据均为程序生成</p>
+        </div>
+        <span class="offline-badge"><i></i>未连接游戏</span>
+      </header>
+
+      <section class="stats-strip" aria-label="运行状态">
+        <span><b id="fps">60</b> FPS</span>
+        <span><b id="tick-ms">0.0</b> ms/tick</span>
+        <span><b id="object-count">4</b> 对象</span>
+        <span class="threat-stat"><b id="threat-count">0</b> 威胁</span>
+      </section>
+
+      <aside class="control-panel" aria-label="实时参数面板">
+        <div class="panel-heading">
+          <div><span class="eyebrow">CONTROL / 01</span><h2>实时参数</h2></div>
+          <button id="panel-toggle" class="icon-button" aria-label="折叠参数面板" title="折叠参数面板">−</button>
+        </div>
+        <div id="panel-body">
+          <div class="playback-row">
+            <button id="play-toggle" class="primary-button">暂停仿真</button>
+            <button id="reset-button" class="secondary-button">重置</button>
+          </div>
+
+          <details open>
+            <summary>决策链路 <span>实时生效</span></summary>
+            <div class="control-group">
+              <label class="toggle-row"><span>自动连招<small>按优先级执行技能序列</small></span><input id="auto-combo" type="checkbox" checked /><i></i></label>
+              <label class="toggle-row"><span>自动躲避<small>预测弹道并搜索安全位置</small></span><input id="auto-dodge" type="checkbox" checked /><i></i></label>
+              <label class="toggle-row"><span>流畅走 A<small>前摇结算伤害，后摇后撤走位</small></span><input id="auto-kite" type="checkbox" checked /><i></i></label>
+              <label class="field-label" for="attack-speed">普攻攻速 · 8 档</label>
+              <select id="attack-speed">
+                <option value="0.75">0.75 次/秒</option>
+                <option value="1.00">1.00 次/秒</option>
+                <option value="1.25" selected>1.25 次/秒</option>
+                <option value="1.50">1.50 次/秒</option>
+                <option value="1.75">1.75 次/秒</option>
+                <option value="2.00">2.00 次/秒</option>
+                <option value="2.25">2.25 次/秒</option>
+                <option value="2.50">2.50 次/秒</option>
+              </select>
+              <div class="attack-timing" aria-label="当前攻击节奏">
+                <span>攻击间隔<b id="attack-interval">0.800 s</b></span>
+                <span>前摇<b id="attack-windup">0.144 s</b></span>
+                <span>后摇<b id="attack-recovery">0.656 s</b></span>
+              </div>
+              <label class="field-label combo-label" for="combo-select">连招序列</label>
+              <select id="combo-select">
+                <option value="standard">标准消耗 · Q → W → E</option>
+                <option value="burst">爆发终结 · W → Q → R</option>
+                <option value="mobility">突进衔接 · E → Q → W</option>
+              </select>
+            </div>
+          </details>
+
+          <details open>
+            <summary>感知与反应 <span>动态参数</span></summary>
+            <div class="control-group">
+              <label class="range-field"><span>决策间隔 <output id="reaction-value">140 ms</output></span><input id="reaction" type="range" min="60" max="500" step="20" value="140" /></label>
+              <label class="range-field"><span>预测窗口 <output id="horizon-value">1.40 s</output></span><input id="horizon" type="range" min="0.4" max="2.4" step="0.1" value="1.4" /></label>
+              <label class="range-field"><span>安全余量 <output id="margin-value">44 px</output></span><input id="margin" type="range" min="10" max="100" step="2" value="44" /></label>
+            </div>
+          </details>
+
+          <details open>
+            <summary>世界与压力 <span>动态参数</span></summary>
+            <div class="control-group">
+              <label class="range-field"><span>仿真速度 <output id="speed-value">1.00×</output></span><input id="speed" type="range" min="0.25" max="2" step="0.25" value="1" /></label>
+              <label class="range-field"><span>敌方施法间隔 <output id="cast-value">2.60 s</output></span><input id="cast-interval" type="range" min="1" max="5" step="0.2" value="2.6" /></label>
+            </div>
+          </details>
+
+          <div class="pipeline" aria-label="当前处理链路">
+            <span class="done">采集</span><i></i><span class="done">建模</span><i></i><span id="pipeline-decision">决策</span><i></i><span id="pipeline-output">输出</span>
+          </div>
+        </div>
+      </aside>
+
+      <section class="inspector" aria-label="决策检查器">
+        <div class="inspector-tabs" role="tablist">
+          <button class="tab active" data-tab="decision" role="tab" aria-selected="true">决策轨迹</button>
+          <button class="tab" data-tab="objects" role="tab" aria-selected="false">对象状态</button>
+          <button class="tab" data-tab="actions" role="tab" aria-selected="false">动作输出 <span id="action-count">0</span></button>
+          <div class="inspector-meta"><span id="sim-time">T+ 00:00.0</span><button id="inspector-toggle" class="icon-button" aria-label="折叠检查器">−</button></div>
+        </div>
+        <div class="inspector-content">
+          <div id="tab-decision" class="tab-page active">
+            <div class="decision-state"><span class="eyebrow">CURRENT STATE</span><strong id="decision-mode">待机</strong><p id="decision-reason">等待第一次状态快照</p></div>
+            <div class="trace-grid">
+              <div><span>锁定目标</span><b id="selected-target">未选择</b></div>
+              <div><span>下一技能</span><b id="next-skill">—</b></div>
+              <div><span>最近威胁</span><b id="nearest-threat">—</b></div>
+              <div><span>安全位置</span><b id="safe-position">—</b></div>
+            </div>
+          </div>
+          <div id="tab-objects" class="tab-page"><div class="table-wrap"><table><thead><tr><th>对象</th><th>阵营</th><th>生命值</th><th>坐标</th><th>状态</th></tr></thead><tbody id="object-rows"></tbody></table></div></div>
+          <div id="tab-actions" class="tab-page"><ol id="action-log" class="action-log"></ol></div>
+        </div>
+      </section>
+      <div id="toast" class="toast" role="status"></div>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
