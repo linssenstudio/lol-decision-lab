@@ -1,0 +1,70 @@
+name: Build and release Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/release.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Setup Python for icon generation
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          npm install
+          python -m pip install Pillow
+
+      - name: Test
+        run: npm test
+
+      - name: Build Windows installer
+        run: npm run dist:win
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Build Windows portable ZIP
+        run: npm run dist:portable
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Verify archives and generate checksums
+        shell: pwsh
+        run: |
+          $setup = 'release/Decision-Lab-Setup-1.0.0-x64.exe'
+          $portable = 'release/Decision-Lab-Portable-1.0.0-x64.zip'
+          if (!(Test-Path $setup) -or !(Test-Path $portable)) { throw 'Windows build artifacts are missing.' }
+          Expand-Archive -Path $portable -DestinationPath 'release/portable-check' -Force
+          if (!(Test-Path 'release/portable-check/决策实验室.exe')) { throw 'Portable executable is missing.' }
+          Get-FileHash -Algorithm SHA256 $setup, $portable | ForEach-Object {
+            "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)"
+          } | Set-Content -Path 'release/CHECKSUMS.txt' -Encoding utf8
+
+      - name: Publish v1.0.0 release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: 决策实验室 v1.0.0
+          body_path: docs/RELEASE_v1.0.0.md
+          draft: false
+          prerelease: false
+          files: |
+            release/Decision-Lab-Setup-1.0.0-x64.exe
+            release/Decision-Lab-Portable-1.0.0-x64.zip
+            release/CHECKSUMS.txt
