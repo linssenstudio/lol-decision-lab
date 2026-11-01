@@ -21,7 +21,7 @@
     "predist:win": "npm run icons",
     "dist:win": "npm run build && electron-builder --config electron-builder.yml --win nsis --x64",
     "predist:portable": "npm run icons",
-    "dist:portable": "npm run build && electron-builder --config electron-builder.yml --win zip --x64 --config.win.artifactName='Decision-Lab-Portable-${version}-${arch}.${ext}'",
+    "dist:portable": "npm run build && electron-builder --config electron-builder.yml --win zip --x64 --config.win.artifactName=Decision-Lab-Portable-${version}-${arch}.${ext}",
     "test": "node --test tests/*.test.js"
   },
   "devDependencies": {
